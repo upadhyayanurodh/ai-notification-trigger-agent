@@ -1,0 +1,35 @@
+# Credentials — never commit real values
+config.js
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Secrets
+*.pem
+*.key
+*_credentials.json
+service-account*.json
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# Logs
+*.log
+logs/
+
+# Node (if dependencies added later)
+node_modules/
+
+# Python (if extended later)
+__pycache__/
+*.pyc
+.venv/
+venv/

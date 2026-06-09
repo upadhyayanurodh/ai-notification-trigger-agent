@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Azure Notification Trigger Agent</title>
+
+  <!--
+    SETUP: Copy config.example.js → config.js and fill in your credentials.
+    config.js is gitignored — never commit real values.
+  -->
+  <script src="config.js"></script>
+
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #f0f4f8;
+      color: #1a202c;
+      min-height: 100vh;
+      padding: 32px 16px;
+    }
+
+    .container {
+      max-width: 820px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    .header h1 {
+      font-size: 22px;
+      font-weight: 700;
+      color: #0078d4;
+    }
+    .header p {
+      font-size: 13px;
+      color: #718096;
+      margin-top: 4px;
+    }
+
+    .card {
+      background: white;
+      border-radius: 12px;
+      padding: 24px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.05);
+    }
+    .card h2 {
+      font-size: 15px;
+      font-weight: 600;
+      color: #2d3748;
+      margin-bottom: 18px;
+    }
+
+    label {
+      display: block;
+      font-size: 12px;
+      font-weight: 600;
+      color: #4a5568;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      margin-bottom: 6px;
+    }
+
+    textarea, input[type="email"] {
+      width: 100%;
+      padding: 10px 14px;
+      border: 1.5px solid #e2e8f0;
+      border-radius: 8px;
+      font-size: 14px;
+      font-family: inherit;
+      color: #1a202c;
+      background: #f7fafc;
+      transition: border-color 0.15s, background 0.15s;
+      outline: none;
+    }
+    textarea:focus, input[type="email"]:focus {
+      border-color: #0078d4;
+      background: #fff;
+    }
+    textarea {
+      min-height: 110px;
+      resize: vertical;
+      margin-bottom: 16px;
+    }
+    input[type="email"] {
+      margin-bottom: 20px;
+    }
+
+    button {
+      background: #0078d4;
+      color: white;
+      border: none;
+      padding: 11px 30px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s, transform 0.1s;
+    }
+    button:hover:not(:disabled) { background: #006cc1; }
+    button:active:not(:disabled) { transform: scale(0.98); }
+    button:disabled {
+      background: #a0aec0;
+      cursor: not-allowed;
+    }
+
+    .log-area {
+      min-height: 260px;
+      font-family: 'Menlo', 'Consolas', 'Courier New', monospace;
+      font-size: 12.5px;
+      line-height: 1.55;
+    }
+    .empty-log {
+      color: #a0aec0;
+      font-style: italic;
+      text-align: center;
+      padding: 48px 0;
+      font-family: inherit;
+    }
+    .log-entry {
+      display: flex;
+      gap: 10px;
+      padding: 5px 0;
+      border-bottom: 1px solid #f7fafc;
+      align-items: flex-start;
+    }
+    .log-entry:last-child { border-bottom: none; }
+    .log-time { color: #b0bec5; white-space: nowrap; font-size: 11px; padding-top: 2px; flex-shrink: 0; }
+    .log-icon { flex-shrink: 0; font-size: 13px; }
+    .log-text { flex: 1; word-break: break-word; }
+    .log-text.info    { color: #2d3748; }
+    .log-text.success { color: #22543d; font-weight: 500; }
+    .log-text.error   { color: #c53030; font-weight: 500; }
+    .log-text.pending { color: #744210; }
+    .log-text.ai      { color: #44337a; }
+
+    .config-error {
+      background: #fff5f5;
+      border: 1.5px solid #fc8181;
+      border-radius: 8px;
+      padding: 16px 20px;
+      color: #c53030;
+      font-size: 14px;
+      line-height: 1.6;
+    }
+    .config-error strong { display: block; margin-bottom: 6px; font-size: 15px; }
+  </style>
+</head>
+<body>
+
+<div class="container">
+
+  <div class="header">
+    <h1>Notification Trigger Agent</h1>
+    <p>Azure AI Foundry &nbsp;·&nbsp; GPT-4.1-mini &nbsp;·&nbsp; Teams + Outlook via Logic Apps</p>
+  </div>
+
+  <div id="configError" style="display:none;" class="card">
+    <div class="config-error">
+      <strong>⚠️ config.js not found</strong>
+      Copy <code>config.example.js</code> → <code>config.js</code> in the same folder,
+      fill in your credentials, and refresh the page.
+    </div>
+  </div>
+
+  <div id="mainUI">
+    <div class="card" style="margin-bottom:24px;">
+      <h2>Describe a Situation</h2>
+      <label for="situation">Situation Description</label>
+      <textarea id="situation"
+        placeholder="e.g. The production database is at 92% disk capacity and may run out of space within the next two hours. Backups are still running."></textarea>
+
+      <label for="recipient">Recipient Email</label>
+      <input type="email" id="recipient" placeholder="recipient@example.com">
+
+      <button id="runBtn" onclick="runAgent()">Run Agent</button>
+    </div>
+
+    <div class="card">
+      <h2>Live Log</h2>
+      <div class="log-area" id="log">
+        <div class="empty-log">Logs will appear here after you run the agent.</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ── Config guard ───────────────────────────────────────────────────────────────
+// Show a helpful error if config.js was not loaded
+if (typeof CONFIG === "undefined") {
+  document.getElementById("configError").style.display = "block";
+  document.getElementById("mainUI").style.display = "none";
+}
+
+// ── System Prompt ──────────────────────────────────────────────────────────────
+const SYSTEM_PROMPT = `You are a smart notification agent. When given an event or situation description, you analyze it and decide whether a notification should be sent.
+
+If a notification is warranted:
+1. Call the send_teams_notification function to post to Teams
+2. Call the send_email_notification function to send an email
+
+IMPORTANT — CONSISTENCY RULE:
+Both the Teams message and the email MUST convey exactly the same facts, severity level, and recommended action.
+The only difference between them is presentation format — not the underlying information.
+Decide on the facts and severity ONCE, then express them in each format below.
+
+Format your Teams message as a brief, clear alert with:
+- What happened
+- Severity (Low / Medium / High)
+- Recommended action
+
+Format your email with:
+- A clear subject line
+- A 2-3 sentence body explaining the same situation and next steps as the Teams message
+
+Always call both functions when sending notifications.
+If the situation does not warrant a notification, explain why.`;
+
+// ── Tool Definitions ───────────────────────────────────────────────────────────
+const TOOLS = [
+  {
+    type: "function",
+    function: {
+      name: "send_teams_notification",
+      description: "Sends a notification to Microsoft Teams channel",
+      parameters: {
+        type: "object",
+        properties: {
+          message:  { type: "string", description: "The alert message describing what happened and the recommended action" },
+          severity: { type: "string", enum: ["Low", "Medium", "High"], description: "Severity level of the notification" }
+        },
+        required: ["message", "severity"]
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "send_email_notification",
+      description: "Sends an email notification via Outlook using Logic Apps",
+      parameters: {
+        type: "object",
+        properties: {
+          subject:   { type: "string" },
+          body:      { type: "string" },
+          recipient: { type: "string" }
+        },
+        required: ["subject", "body", "recipient"]
+      }
+    }
+  }
+];
+
+// ── Logging ────────────────────────────────────────────────────────────────────
+function log(message, type = "info") {
+  const panel = document.getElementById("log");
+  const empty = panel.querySelector(".empty-log");
+  if (empty) empty.remove();
+
+  const icons = { info: "ℹ️", success: "✅", error: "❌", pending: "⏳", ai: "🤖" };
+  const now   = new Date().toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+
+  const entry = document.createElement("div");
+  entry.className = "log-entry";
+  entry.innerHTML =
+    `<span class="log-time">${now}</span>` +
+    `<span class="log-icon">${icons[type] ?? "·"}</span>` +
+    `<span class="log-text ${type}">${escHtml(message)}</span>`;
+
+  panel.appendChild(entry);
+  panel.scrollTop = panel.scrollHeight;
+}
+
+function escHtml(str) {
+  return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+function resetBtn() {
+  const btn = document.getElementById("runBtn");
+  btn.disabled    = false;
+  btn.textContent = "Run Agent";
+}
+
+// ── Teams webhook ──────────────────────────────────────────────────────────────
+async function sendTeamsNotification(message, severity) {
+  const res = await fetch(CONFIG.TEAMS_WEBHOOK_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ message, severity })
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => "(no body)");
+    throw new Error(`HTTP ${res.status} — ${text}`);
+  }
+}
+
+// ── Logic Apps email ───────────────────────────────────────────────────────────
+async function sendEmailNotification(subject, body, recipient) {
+  const res = await fetch(CONFIG.LOGIC_APPS_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ subject, body, recipient })
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => "(no body)");
+    throw new Error(`HTTP ${res.status} — ${text}`);
+  }
+}
+
+// ── Main runner ────────────────────────────────────────────────────────────────
+async function runAgent() {
+  if (typeof CONFIG === "undefined") return;
+
+  const situation = document.getElementById("situation").value.trim();
+  const recipient = document.getElementById("recipient").value.trim();
+  const btn       = document.getElementById("runBtn");
+
+  if (!situation) { alert("Please describe the situation first."); return; }
+  if (!recipient) { alert("Please enter a recipient email address."); return; }
+
+  btn.disabled    = true;
+  btn.textContent = "Running…";
+  document.getElementById("log").innerHTML = "";
+
+  log("Situation received — calling Azure AI…", "pending");
+
+  // Step 1 — Call Azure OpenAI ─────────────────────────────────────────────────
+  let data;
+  try {
+    const url = `${CONFIG.AZURE_ENDPOINT}/chat/completions`;
+    log(`Calling: ${url}`, "info");
+
+    const res = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "api-key": CONFIG.API_KEY
+      },
+      body: JSON.stringify({
+        model: CONFIG.DEPLOYMENT,
+        messages: [
+          { role: "system", content: SYSTEM_PROMPT },
+          { role: "user",   content: `${situation}\n\nRecipient email for notifications: ${recipient}` }
+        ],
+        tools: TOOLS,
+        tool_choice: "auto",
+        max_tokens: 1000
+      })
+    });
+
+    if (!res.ok) {
+      const errText = await res.text().catch(() => "");
+      throw new Error(`Azure OpenAI HTTP ${res.status}: ${errText}`);
+    }
+
+    data = await res.json();
+    log("Azure AI responded.", "success");
+
+  } catch (err) {
+    log(`Azure AI call failed: ${err.message}`, "error");
+    resetBtn();
+    return;
+  }
+
+  // Step 2 — Parse tool calls ──────────────────────────────────────────────────
+  const choice    = data.choices?.[0];
+  const toolCalls = choice?.message?.tool_calls;
+
+  if (!toolCalls || toolCalls.length === 0) {
+    const content = choice?.message?.content || "(no explanation returned)";
+    log(`Agent decided no notification is needed: ${content}`, "ai");
+    resetBtn();
+    return;
+  }
+
+  log(`Agent triggered ${toolCalls.length} notification action(s).`, "ai");
+
+  // Step 3 — Execute tool calls ────────────────────────────────────────────────
+  for (const call of toolCalls) {
+    const fnName = call.function?.name;
+    let args;
+
+    try {
+      args = JSON.parse(call.function.arguments);
+    } catch {
+      log(`Could not parse arguments for ${fnName} — skipping.`, "error");
+      continue;
+    }
+
+    if (fnName === "send_teams_notification") {
+      log(`Posting Teams alert (severity: ${args.severity})…`, "pending");
+      try {
+        await sendTeamsNotification(args.message, args.severity);
+        log("Teams notification sent.", "success");
+      } catch (err) {
+        log(`Teams failed: ${err.message}`, "error");
+      }
+
+    } else if (fnName === "send_email_notification") {
+      const to = args.recipient || recipient;
+      log(`Sending email to ${to} — subject: "${args.subject}"…`, "pending");
+      try {
+        await sendEmailNotification(args.subject, args.body, to);
+        log(`Email sent to ${to}.`, "success");
+      } catch (err) {
+        log(`Email failed: ${err.message}`, "error");
+      }
+
+    } else {
+      log(`Unknown function called by agent: ${fnName}`, "info");
+    }
+  }
+
+  log("Agent run complete.", "success");
+  resetBtn();
+}
+</script>
+
+</body>
+</html>
