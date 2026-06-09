@@ -2,12 +2,23 @@
 
 > An Azure AI agent that reads a natural language situation description, decides if a notification is warranted, and simultaneously dispatches a formatted alert to Microsoft Teams and Outlook — with consistent content enforced across both channels.
 
+[![Live Demo](https://img.shields.io/badge/Live_Demo-Azure_Static_Web_Apps-0078d4?style=flat-square&logo=microsoftazure)](https://agreeable-forest-06b3e3700.7.azurestaticapps.net)
 ![Azure](https://img.shields.io/badge/Azure-AI_Foundry-0078d4?style=flat-square&logo=microsoftazure)
 ![Model](https://img.shields.io/badge/Model-GPT--4.1--mini-412991?style=flat-square)
 ![JS](https://img.shields.io/badge/JavaScript-Vanilla_JS-f7df1e?style=flat-square&logo=javascript&logoColor=black)
 ![Teams](https://img.shields.io/badge/Microsoft-Teams-6264a7?style=flat-square&logo=microsoftteams)
 ![Outlook](https://img.shields.io/badge/Microsoft-Outlook-0078d4?style=flat-square&logo=microsoftoutlook)
 ![Status](https://img.shields.io/badge/Status-Active-22c55e?style=flat-square)
+
+---
+
+## Live Demo
+
+**[https://agreeable-forest-06b3e3700.7.azurestaticapps.net](https://agreeable-forest-06b3e3700.7.azurestaticapps.net)**
+
+Hosted on Azure Static Web Apps (free tier). Credentials are held server-side in Azure Functions — no API keys are exposed in the browser.
+
+> Enter any situation description and a recipient email, then click **Run Agent** to trigger live Teams and Outlook notifications.
 
 ---
 
