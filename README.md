@@ -18,7 +18,19 @@
 
 Hosted on Azure Static Web Apps (free tier). Credentials are held server-side in Azure Functions — no API keys are exposed in the browser.
 
-> Enter any situation description and a recipient email, then click **Run Agent** to trigger live Teams and Outlook notifications.
+### Try it yourself
+
+Paste the situation below into the **Situation Description** field, enter your email in the **Recipient Email** field, and click **Run Agent**:
+
+```
+The production database server is at 92% disk capacity and is projected to run out of space
+within the next two hours. Automated backups are still running and consuming additional space.
+The on-call engineer has been notified but has not yet responded.
+```
+
+The agent will assess severity, then simultaneously post a formatted alert to Microsoft Teams and send an Outlook email to the address you entered.
+
+> **📬 Check your spam / junk folder.** Emails sent via Azure Logic Apps may be filtered by your mail provider on first delivery. If you don't see the email in your inbox within a minute, check spam or junk.
 
 ---
 
