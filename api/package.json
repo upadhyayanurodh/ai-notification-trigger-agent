@@ -1,0 +1,8 @@
+{
+    "name": "ai-notification-trigger-api",
+    "version": "1.0.0",
+    "description": "Azure Functions proxy — holds credentials server-side for the AI Notification Trigger Agent",
+    "engines": {
+        "node": ">=18"
+    }
+}

@@ -190,9 +190,21 @@
 </div>
 
 <script>
-// ── Config guard ───────────────────────────────────────────────────────────────
-// Show a helpful error if config.js was not loaded
-if (typeof CONFIG === "undefined") {
+// ── Deployment mode detection ──────────────────────────────────────────────────
+// Deployed on Azure Static Web Apps → use /api/* proxy (credentials are server-side)
+// Running locally (file:// or localhost) → use config.js (credentials in local file)
+const IS_DEPLOYED = window.location.protocol !== "file:" &&
+                    window.location.hostname  !== "localhost" &&
+                    window.location.hostname  !== "127.0.0.1";
+
+// ── API endpoints (resolved once at startup) ───────────────────────────────────
+const CHAT_URL  = IS_DEPLOYED ? "/api/chat"  : (typeof CONFIG !== "undefined" ? `${CONFIG.AZURE_ENDPOINT}/chat/completions` : null);
+const TEAMS_URL = IS_DEPLOYED ? "/api/teams" : (typeof CONFIG !== "undefined" ? CONFIG.TEAMS_WEBHOOK_URL                   : null);
+const EMAIL_URL = IS_DEPLOYED ? "/api/email" : (typeof CONFIG !== "undefined" ? CONFIG.LOGIC_APPS_URL                     : null);
+
+// ── Config guard (local mode only) ────────────────────────────────────────────
+// Only show the setup error when running locally without a config.js
+if (!IS_DEPLOYED && typeof CONFIG === "undefined") {
   document.getElementById("configError").style.display = "block";
   document.getElementById("mainUI").style.display = "none";
 }
@@ -288,7 +300,7 @@ function resetBtn() {
 
 // ── Teams webhook ──────────────────────────────────────────────────────────────
 async function sendTeamsNotification(message, severity) {
-  const res = await fetch(CONFIG.TEAMS_WEBHOOK_URL, {
+  const res = await fetch(TEAMS_URL, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ message, severity })
@@ -301,7 +313,7 @@ async function sendTeamsNotification(message, severity) {
 
 // ── Logic Apps email ───────────────────────────────────────────────────────────
 async function sendEmailNotification(subject, body, recipient) {
-  const res = await fetch(CONFIG.LOGIC_APPS_URL, {
+  const res = await fetch(EMAIL_URL, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ subject, body, recipient })
@@ -332,17 +344,18 @@ async function runAgent() {
   // Step 1 — Call Azure OpenAI ─────────────────────────────────────────────────
   let data;
   try {
-    const url = `${CONFIG.AZURE_ENDPOINT}/chat/completions`;
-    log(`Calling: ${url}`, "info");
+    const url = CHAT_URL;
+    log(`Calling: ${IS_DEPLOYED ? "/api/chat (proxy)" : url}`, "info");
 
     const res = await fetch(url, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "api-key": CONFIG.API_KEY
+        // api-key is injected by the proxy in deployed mode; included here for local dev
+        ...(IS_DEPLOYED ? {} : { "api-key": CONFIG.API_KEY })
       },
       body: JSON.stringify({
-        model: CONFIG.DEPLOYMENT,
+        model: IS_DEPLOYED ? "gpt-4.1-mini" : CONFIG.DEPLOYMENT,
         messages: [
           { role: "system", content: SYSTEM_PROMPT },
           { role: "user",   content: `${situation}\n\nRecipient email for notifications: ${recipient}` }

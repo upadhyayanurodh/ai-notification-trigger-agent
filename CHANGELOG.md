@@ -23,6 +23,16 @@ All notable changes to this project are documented here.
 
 ---
 
+## [1.1.0] — 2026-06-09
+
+### Added
+- Azure Functions proxy layer (`api/chat`, `api/teams`, `api/email`) — credentials held server-side, never exposed in the browser
+- `staticwebapp.config.json` — Azure Static Web Apps routing and security headers
+- Deployment mode detection in `agent-test.html` — automatically uses `/api/*` proxy when hosted, `config.js` when running locally
+- Live deployment on Azure Static Web Apps (free tier)
+
+---
+
 ## [Pending] — Next Release
 
 - Update `agent-test.html` to use Azure AI Foundry Assistants API (replacing raw chat completions)

@@ -1,0 +1,19 @@
+{
+    "routes": [
+        {
+            "route": "/",
+            "rewrite": "/agent-test.html"
+        },
+        {
+            "route": "/api/*",
+            "allowedRoles": ["anonymous"]
+        }
+    ],
+    "globalHeaders": {
+        "X-Content-Type-Options": "nosniff",
+        "X-Frame-Options": "SAMEORIGIN"
+    },
+    "mimeTypes": {
+        ".js": "text/javascript"
+    }
+}

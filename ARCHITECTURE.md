@@ -24,13 +24,24 @@ flowchart TD
         Agent["🤖 NotificationTrigger Agent\nAssistants API · Threads + Runs\nAzure executes tool calls\nStateful · run history in portal"]
     end
 
-    HTML -->|"POST /chat/completions\nFunction Calling"| GPT
+    subgraph Proxy ["Azure Functions Proxy (Deployed)"]
+        FnChat["⚙️ /api/chat\nInjects API key server-side"]
+        FnTeams["⚙️ /api/teams\nHolds webhook URL server-side"]
+        FnEmail["⚙️ /api/email\nHolds Logic Apps URL server-side"]
+    end
+
+    HTML -->|"Local dev: POST /chat/completions\nDeployed: POST /api/chat"| GPT
+    HTML -.->|"Deployed mode only"| FnChat
+    FnChat -->|"Adds api-key header"| GPT
     Portal -->|"Assistants API\nOpenAPI Tools"| Agent
 
     GPT -->|"tool_calls[ ]\nParsed by browser JS"| TFn
     GPT -->|"tool_calls[ ]\nParsed by browser JS"| EFn
     Agent -->|"OpenAPI tool call\nAzure makes HTTP request"| TFn
     Agent -->|"OpenAPI tool call\nAzure makes HTTP request"| EFn
+
+    TFn -.->|"Deployed mode"| FnTeams
+    EFn -.->|"Deployed mode"| FnEmail
 
     subgraph Execution ["Tool Execution — Same for Both Paths"]
         TFn["send_teams_notification\n{ message, severity }"]
