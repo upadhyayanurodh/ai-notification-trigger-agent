@@ -326,7 +326,7 @@ async function sendEmailNotification(subject, body, recipient) {
 
 // ── Main runner ────────────────────────────────────────────────────────────────
 async function runAgent() {
-  if (typeof CONFIG === "undefined") return;
+  if (!IS_DEPLOYED && typeof CONFIG === "undefined") return;
 
   const situation = document.getElementById("situation").value.trim();
   const recipient = document.getElementById("recipient").value.trim();
