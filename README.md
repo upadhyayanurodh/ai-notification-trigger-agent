@@ -140,10 +140,13 @@ The steps below are for running it locally with your own Azure infrastructure.
 ### Prerequisites
 
 - Azure subscription with Azure AI Foundry access
-- GPT-4.1-mini deployed in Azure AI Foundry
-- Azure Logic Apps workflow with HTTP trigger → Send email (V2) action
-- Power Automate flow with HTTP webhook trigger → Post a message in Teams
+- GPT-4.1-mini deployed in Azure AI Foundry (Standard Global)
+- A Microsoft Teams team with a channel named **"Notification Trigger Agent"**
+- Power Automate flow: HTTP webhook trigger → **"Post a message in a chat or channel"** action (Teams)
+- Azure Logic Apps workflow: HTTP trigger → **"Send an email (V2)"** action (Office 365 Outlook)
 - A modern web browser (Chrome / Edge recommended)
+
+See [SETUP.md](./SETUP.md) for step-by-step instructions on creating each of the above from scratch, including the correct Azure endpoint location, exact action names, JSON body schemas, and the Publish-vs-Save gotcha in Logic Apps.
 
 ### Installation
 
@@ -170,7 +173,7 @@ const CONFIG = {
 };
 ```
 
-> **SAS token note:** Both webhook URLs contain embedded SAS tokens that expire. Regenerate them from Power Automate (flow → trigger block) and Azure Portal (Logic App designer → trigger) if notifications stop working.
+> **SAS token note:** Both webhook URLs contain a time-limited `sig=` token embedded in the URL query string. If a working agent suddenly stops sending notifications, the token has likely expired. Regenerate: Power Automate → open flow → trigger block → `···` menu → **Regenerate key**; Logic Apps → Azure Portal → Logic App Designer → trigger block → copy the refreshed URL. See [SETUP.md — SAS Token Reference](./SETUP.md#sas-token-reference) for details.
 
 ### Running
 

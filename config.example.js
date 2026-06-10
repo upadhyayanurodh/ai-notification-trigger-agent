@@ -8,15 +8,21 @@
 
 const CONFIG = {
 
-  // Azure AI Foundry — OpenAI endpoint
-  // Found in: ai.azure.com → Your Project → Settings → API Keys
+  // Azure OpenAI chat completions endpoint
+  // Found in: Azure Portal → your OpenAI resource → Resource Management → Keys and Endpoint
+  // Copy the "Endpoint" value and append /openai/v1
+  // ⚠️  NOT the endpoint shown in Azure AI Foundry (ai.azure.com) — that one uses a different API
   AZURE_ENDPOINT: "https://YOUR-RESOURCE-NAME.openai.azure.com/openai/v1",
 
   // Azure OpenAI API Key
-  // Found in: ai.azure.com → Your Project → Settings → API Keys
+  // Found in: Azure Portal → your OpenAI resource → Resource Management → Keys and Endpoint
+  // Use "KEY 1" or "KEY 2" from that page
+  // ⚠️  NOT the key shown in Azure AI Foundry portal (ai.azure.com)
   API_KEY: "YOUR_AZURE_OPENAI_API_KEY",
 
-  // Model deployment name in Azure AI Foundry
+  // Model deployment name — must match exactly what you named your deployment in Azure AI Foundry
+  // Found in: ai.azure.com → Your Project → Models + Endpoints → Deployments tab
+  // This is the name you gave the deployment, not the model name — they can differ
   DEPLOYMENT: "gpt-4.1-mini",
 
   // Power Automate webhook URL (Teams notifications)
