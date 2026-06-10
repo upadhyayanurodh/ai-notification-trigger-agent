@@ -46,7 +46,7 @@ Built an AI agent on Azure AI Foundry (GPT-4.1-mini) that takes a plain-English 
 - **Microsoft Teams** via a Power Automate webhook
 - **Outlook email** via Azure Logic Apps
 
-The agent enforces content consistency — both outputs carry the same facts and severity rating, just formatted differently. It runs from two interfaces: a self-contained browser HTML file (zero dependencies) and natively from within the Azure AI Foundry portal.
+The agent enforces content consistency — both outputs carry the same facts and severity rating, just formatted differently. It runs from two interfaces: a self-contained browser HTML file (no npm dependencies or build step) and natively from within the Azure AI Foundry portal.
 
 ---
 
@@ -66,7 +66,7 @@ flowchart TD
         Portal["🖥️ Azure AI Foundry\nPortal Playground"]
     end
 
-    HTML -->|"Path A — Direct\nPOST /chat/completions\nFunction Calling\nBrowser executes tools"| GPT["🤖 GPT-4.1-mini\nDirect model call\nNo agent involved"]
+    HTML -->|"Path A\nLocal: POST /chat/completions\nDeployed: POST /api/chat proxy\nBrowser parses tool calls"| GPT["🤖 GPT-4.1-mini\nNo agent involved"]
 
     Portal -->|"Path B — Agent\nAssistants API\nOpenAPI Tools\nAzure executes tools"| Agent["🤖 NotificationTrigger Agent\nAssistants API\nGPT-4.1-mini"]
 
@@ -102,11 +102,11 @@ See [ARCHITECTURE.md](./ARCHITECTURE.md) for the full data flow and design decis
 |---|---|---|
 | AI Call | Azure OpenAI `/chat/completions` + Function Calling | Azure AI Agents — Assistants API (threads + runs) |
 | Model | GPT-4.1-mini (direct) | GPT-4.1-mini via NotificationTrigger Agent |
-| Tool Execution | Browser JavaScript (client-side fetch) | Azure server-side via OpenAPI tool definitions |
+| Tool Execution | Local: Browser JS (client-side fetch) · Deployed: `/api/*` Azure Functions proxy | Azure server-side via OpenAPI tool definitions |
 | State | Stateless — no conversation history | Stateful — thread + run history in Foundry portal |
 | Teams Delivery | Power Automate webhook | Power Automate webhook (called by Azure via OpenAPI tool) |
 | Email Delivery | Azure Logic Apps → Office 365 Outlook | Azure Logic Apps → Office 365 Outlook (called by Azure via OpenAPI tool) |
-| Frontend | Vanilla JS — zero dependencies, single HTML file | Azure AI Foundry portal UI |
+| Frontend | Vanilla JS — no npm dependencies; deployed via Azure Static Web Apps | Azure AI Foundry portal UI |
 
 ---
 
@@ -122,13 +122,20 @@ Built using [Claude Code](https://claude.ai/code) (Anthropic) for agentic develo
 - **AI-driven severity assessment** — agent classifies Low / Medium / High automatically
 - **Dual-channel delivery** — Teams + Outlook dispatched simultaneously
 - **Consistency enforced** — same facts and severity across both channels, different formats
-- **Two interfaces** — browser HTML file (portable, no server) and Azure AI Foundry portal (stateful, run history)
+- **Two interfaces** — browser HTML file (no npm/build tools required; deployable via Azure SWA) and Azure AI Foundry portal (stateful, run history)
 - **Live log panel** — timestamped status for every step of execution
 - **Config-separated credentials** — `config.js` is gitignored; `config.example.js` is the setup guide
 
 ---
 
 ## Getting Started
+
+### Just want to try it?
+
+The agent is already deployed — no setup required:
+**[https://agreeable-forest-06b3e3700.7.azurestaticapps.net](https://agreeable-forest-06b3e3700.7.azurestaticapps.net)**
+
+The steps below are for running it locally with your own Azure infrastructure.
 
 ### Prerequisites
 
@@ -177,6 +184,9 @@ Right-click agent-test.html → Open with Live Server
 
 ## Demo
 
+### Live deployed interface (Azure Static Web Apps)
+**[▶ Open the live agent](https://agreeable-forest-06b3e3700.7.azurestaticapps.net)** — fully functional, no login required.
+
 ### Agent configured in Azure AI Foundry
 ![Foundry Config](./docs/screenshots/foundry-config.png)
 
@@ -194,15 +204,15 @@ Right-click agent-test.html → Open with Live Server
 ## Key Decisions & Tradeoffs
 
 **Two deliberately distinct implementations**
-**Path A (HTML):** Calls GPT-4.1-mini directly via `/chat/completions` with function calling. The browser parses `tool_calls` and executes the HTTP requests itself. Stateless, portable, no server required.
+**Path A (HTML):** Calls GPT-4.1-mini via `/chat/completions` with function calling. The browser parses `tool_calls`. Locally, the browser also executes the HTTP requests directly. When deployed on Azure Static Web Apps, all credentials are held server-side via an Azure Functions proxy (`/api/chat`, `/api/teams`, `/api/email`) — the browser never sees an API key.
 **Path B (Foundry portal):** Uses the Assistants API — the NotificationTrigger agent runs inside Azure with stateful threads and run history visible in the portal. Azure executes the tool calls server-side via OpenAPI tool definitions.
-Both deliver to the same Teams channel and Outlook inbox. The tradeoff: Path A is faster to run locally with zero infrastructure beyond credentials; Path B is production-grade with audit trail and no client-side credential exposure in the tool execution.
+Both deliver to the same Teams channel and Outlook inbox. The tradeoff: Path A requires no build tools and runs directly in a browser locally; deployed, it adds a lightweight server-side proxy. Path B is production-grade with full audit trail.
 
 **OpenAPI tools in Foundry instead of client-side execution**
 In the Foundry portal, Azure itself makes the HTTP calls to Teams and Logic Apps via OpenAPI tool definitions. This means notifications fire server-side — no browser needed. Tradeoff: OpenAPI specs with embedded SAS tokens must be updated when tokens expire.
 
-**Vanilla JS, zero dependencies**
-Kept as a single self-contained HTML file. Anyone can open it without npm, build tools, or a server. Tradeoff: no bundling, no TypeScript, harder to extend into a larger application.
+**Vanilla JS, no npm dependencies**
+No bundler, no build step, no package manager required to run locally — open `agent-test.html` directly in a browser. When deployed, an Azure Functions proxy adds server-side credential handling without changing the HTML itself. Tradeoff: no TypeScript, harder to extend into a larger application.
 
 **Consistency constraint in system prompt**
 The model generates both the Teams message and email body in a single response. Without explicit instruction, it produced divergent content. The fix was a system prompt rule: *"Decide on facts and severity ONCE, then express in each format."*
@@ -225,7 +235,7 @@ The model generates both the Teams message and email body in a single response. 
 
 ## Status
 
-**Active** — v1.0.0 complete. Pending: update `agent-test.html` to call the NotificationTrigger agent via the Assistants API (threads + runs) for stateful execution and portal run history.
+**Active** — v1.1.0 complete. Deployed live on Azure Static Web Apps with server-side Azure Functions proxy. Pending: update `agent-test.html` to call the NotificationTrigger agent via the Assistants API (threads + runs) for stateful execution and portal run history.
 
 ---
 

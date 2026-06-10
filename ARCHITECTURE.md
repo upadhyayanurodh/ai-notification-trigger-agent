@@ -16,23 +16,23 @@ flowchart TD
         Portal["🖥️ Azure AI Foundry\nPortal Playground"]
     end
 
-    subgraph PathA ["Path A — Direct API"]
-        GPT["🤖 GPT-4.1-mini\nDirect /chat/completions call\nNo agent involved\nBrowser executes tool calls"]
+    subgraph PathA ["Path A — Browser API"]
+        GPT["🤖 GPT-4.1-mini\n/chat/completions\nNo agent involved\nBrowser parses tool calls"]
     end
 
     subgraph PathB ["Path B — Agent API"]
         Agent["🤖 NotificationTrigger Agent\nAssistants API · Threads + Runs\nAzure executes tool calls\nStateful · run history in portal"]
     end
 
-    subgraph Proxy ["Azure Functions Proxy (Deployed)"]
-        FnChat["⚙️ /api/chat\nInjects API key server-side"]
-        FnTeams["⚙️ /api/teams\nHolds webhook URL server-side"]
-        FnEmail["⚙️ /api/email\nHolds Logic Apps URL server-side"]
+    subgraph Proxy ["Azure Functions Proxy — Deployed mode only"]
+        FnChat["⚙️ /api/chat\nHolds API key · forwards to Azure OpenAI"]
+        FnTeams["⚙️ /api/teams\nHolds webhook URL · forwards to Power Automate"]
+        FnEmail["⚙️ /api/email\nHolds Logic Apps URL · forwards to Logic Apps"]
     end
 
-    HTML -->|"Local dev: POST /chat/completions\nDeployed: POST /api/chat"| GPT
-    HTML -.->|"Deployed mode only"| FnChat
-    FnChat -->|"Adds api-key header"| GPT
+    HTML -->|"Local: POST /chat/completions"| GPT
+    HTML -->|"Deployed: POST /api/chat"| FnChat
+    FnChat -->|"POST /chat/completions\n+ api-key header"| GPT
     Portal -->|"Assistants API\nOpenAPI Tools"| Agent
 
     GPT -->|"tool_calls[ ]\nParsed by browser JS"| TFn
@@ -40,16 +40,20 @@ flowchart TD
     Agent -->|"OpenAPI tool call\nAzure makes HTTP request"| TFn
     Agent -->|"OpenAPI tool call\nAzure makes HTTP request"| EFn
 
-    TFn -.->|"Deployed mode"| FnTeams
-    EFn -.->|"Deployed mode"| FnEmail
+    TFn -->|"Local: direct POST"| PA
+    TFn -->|"Deployed: via /api/teams"| FnTeams
+    EFn -->|"Local: direct POST"| LA
+    EFn -->|"Deployed: via /api/email"| FnEmail
+    FnTeams -->|"HTTP POST"| PA
+    FnEmail -->|"HTTP POST"| LA
 
     subgraph Execution ["Tool Execution — Same for Both Paths"]
         TFn["send_teams_notification\n{ message, severity }"]
         EFn["send_email_notification\n{ subject, body, recipient }"]
     end
 
-    TFn -->|"HTTP POST"| PA["⚡ Power Automate\nSend webhook alerts to\nNotification Trigger Agent"]
-    EFn -->|"HTTP POST"| LA["⚙️ Azure Logic Apps\nAgentLearningAndDevelopment"]
+    PA["⚡ Power Automate\nSend webhook alerts to\nNotification Trigger Agent"]
+    LA["⚙️ Azure Logic Apps\nAgentLearningAndDevelopment"]
 
     subgraph Microsoft365 ["Microsoft 365"]
         PA
@@ -69,9 +73,14 @@ flowchart TD
 | Component | Path | Role | Technology |
 |---|---|---|---|
 | `agent-test.html` | A | Browser UI — input form, live log panel, tool execution loop | Vanilla JS, HTML/CSS |
-| `config.js` | A | Local credential store (gitignored) | JavaScript |
-| Azure OpenAI `/chat/completions` | A | Direct LLM inference with function calling — no agent | Azure OpenAI API |
-| Browser JavaScript (`runAgent()`) | A | Parses `tool_calls`, executes HTTP requests to Teams + Logic Apps | Vanilla JS |
+| `index.html` | A (deployed) | Entry point redirect required by Azure Static Web Apps | HTML |
+| `config.js` | A (local) | Local credential store (gitignored) | JavaScript |
+| `staticwebapp.config.json` | A (deployed) | SWA routing config — serves agent-test.html at `/`, security headers | Azure Static Web Apps |
+| Azure OpenAI `/chat/completions` | A | LLM inference with function calling — no agent involved | Azure OpenAI API |
+| Browser JavaScript (`runAgent()`) | A | Calls `/chat/completions` (local) or `/api/chat` (deployed), parses `tool_calls` | Vanilla JS |
+| `/api/chat` Azure Function | A (deployed) | Proxy — holds API key server-side, forwards to Azure OpenAI | Azure Functions (Node.js 18) |
+| `/api/teams` Azure Function | A (deployed) | Proxy — holds Power Automate webhook URL server-side | Azure Functions (Node.js 18) |
+| `/api/email` Azure Function | A (deployed) | Proxy — holds Logic Apps URL server-side | Azure Functions (Node.js 18) |
 | NotificationTrigger Agent | B | Hosted agent — analyses situation, decides severity, calls OpenAPI tools | Azure AI Agents (Assistants API) |
 | OpenAPI Tool Definitions | B | Describe Teams webhook + Logic Apps endpoints; Azure makes the HTTP calls | Azure AI Foundry Tools |
 | Power Automate Flow | A + B | Receives webhook payload, posts message to Teams channel | Microsoft Power Automate |
@@ -138,7 +147,7 @@ flowchart TD
 ## Key Design Decisions
 
 ### 1. Two independent interfaces
-The browser HTML file and the Foundry portal both work standalone. The HTML uses the raw chat completions API (no server required, zero dependencies), while the Foundry portal uses the full Assistants API with stateful threads. This allows both a quick local test interface and a properly managed agent in production.
+The browser HTML file and the Foundry portal both work standalone. The HTML uses the raw chat completions API — no npm dependencies or build step when running locally. When deployed on Azure Static Web Apps, credentials are held server-side via an Azure Functions proxy; the HTML itself is unchanged. The Foundry portal uses the full Assistants API with stateful threads. This allows a quick local test interface, a publicly hosted live demo, and a production-grade agent with audit trail — all from the same codebase.
 
 ### 2. OpenAPI tools in Foundry (not custom function definitions)
 Azure AI Foundry's Agents UI supports OpenAPI tool definitions — the agent calls external HTTP endpoints directly from Azure. This means no client-side code is needed when using the portal; Azure itself makes the HTTP calls to Power Automate and Logic Apps.
